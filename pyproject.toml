@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nonans"
+version = "0.4.0"
+description = "nonansNRI: Numerical Runtime Intelligence (NRI). Runtime instrumentation for the real-time classification of legitimate numerical events in transformer training and inference."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Ahlem Makhebi", email = "ahlemmakhebi@protonmail.com" }
+]
+keywords = [
+    "numerical runtime intelligence",
+    "nonansNRI",
+    "nonans",
+    "real-time classification",
+    "structural health monitoring",
+    "Shannon entropy",
+    "singular value decomposition",
+    "transformer training stability",
+    "attention entropy",
+    "fault classification",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: System :: Monitoring",
+]
+dependencies = [
+    "numpy>=1.22",
+]
+
+[project.optional-dependencies]
+torch = ["torch>=1.12"]
+bench = ["matplotlib>=3.5"]
+test = ["pytest>=7.0"]
+all = ["torch>=1.12", "matplotlib>=3.5", "pytest>=7.0"]
+
+[project.urls]
+Homepage = "https://github.com/makheahlem/nonans"
+Repository = "https://github.com/makheahlem/nonans"
+Preprint = "https://doi.org/10.5281/zenodo.20573423"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["nonans*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra --strict-markers"
+markers = [
+    "gpu: requires CUDA-capable PyTorch (skipped automatically when unavailable)",
+    "slow: longer-running benchmark-grade tests",
+]

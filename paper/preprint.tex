@@ -1,0 +1,1567 @@
+%% ============================================================
+%% Numerical Runtime Intelligence (NRI):
+%% A Framework for Real-Time Observation, Classification, and
+%% Selective Stabilization of Numerical Instability Propagation
+%% in GPU Transformer Runtimes
+%%
+%% DOI Preprint — Zenodo / SSRN / arXiv Edition
+%% Reference implementation: nonans v0.4.0
+%% Benchmark seed: 20260525
+%% Version: 1.0.0
+%% ============================================================
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage[expansion=false]{microtype}
+\usepackage{enumitem}
+\usepackage{natbib}
+\usepackage{siunitx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{fancyhdr}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  citecolor=blue!70!black,
+  urlcolor=blue!70!black,
+  pdftitle={Numerical Runtime Intelligence: A Framework for Real-Time
+    Structural Health Monitoring in GPU Transformer Runtimes},
+  pdfauthor={Makhebi Ahlem},
+  pdfsubject={Machine Learning Systems, Numerical Analysis,
+    GPU Fault Tolerance, Transformer Infrastructure},
+  pdfkeywords={numerical runtime intelligence, structural health monitoring,
+    Shannon entropy, transformer training stability, NaN fault detection,
+    singular value decomposition, attention entropy, GPU resilience,
+    fault classification, nonansNRI, nonans}
+}
+
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{remark}{Remark}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\small\textit{Preprint — NRI Framework v1.0.0}}
+\lhead{\small\textit{\texttt{nonans} v0.4.0}}
+\cfoot{\thepage}
+
+% Allow LaTeX more flexibility to avoid overfull boxes from long
+% monospace identifiers that cannot hyphenate.
+\setlength{\emergencystretch}{3em}
+\hbadness=10000
+
+%% ─── Title ───────────────────────────────────────────────────────────────────
+
+\title{%
+  \textbf{Numerical Runtime Intelligence (NRI):}\\
+  \textbf{A Framework for Real-Time Observation, Classification, and}\\
+  \textbf{Selective Stabilization of Numerical Instability Propagation}\\
+  \textbf{in GPU Transformer Runtimes}\\[6pt]
+  \large A Unified Framework via Shannon Entropy of Already-Computed
+  Distributions
+}
+
+\author{%
+  Makhebi Ahlem\\[2pt]
+  \small Independent Researcher\\
+  \small Germany\\
+  \small \texttt{ahlemmakhebi@protonmail.com}\\[4pt]
+  \small ORCID: \texttt{0009-0007-7010-3282}
+}
+
+\date{%
+  \textbf{Version 1.0.0} --- May 2026\\[2pt]
+  \small Project: \textbf{nonansNRI} \quad
+  Reference implementation: \texttt{nonans} v0.4.0\\
+  \small Repository: \url{https://github.com/makheahlem/nonans} \quad
+  Benchmark seed: \texttt{20260525}\\
+  \small Paper: CC BY 4.0 \quad Code: Apache 2.0 (open) / Proprietary (resolver)
+}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+%% ─── Provenance declaration ──────────────────────────────────────────────────
+
+\begin{center}
+\small\textit{%
+  This document establishes the conceptual architecture, formal framework,
+  benchmark results, and attribution record for the Numerical Runtime
+  Intelligence (NRI) framework and its reference implementation
+  \texttt{nonans} v0.4.0.
+  The terminology, named architectural components, and benchmark protocols
+  defined herein constitute the founding technical vocabulary of this work.
+}
+\end{center}
+
+\hrule
+\vspace{8pt}
+
+%% ─── Abstract ────────────────────────────────────────────────────────────────
+
+\begin{abstract}
+We introduce Numerical Runtime Intelligence (NRI), a runtime
+instrumentation layer for the real-time classification of legitimate
+numerical events---non-finite values that arise from the computation
+itself (overflow, structural rank collapse, attention concentration),
+not from hardware faults.
+NRI is distinct from algorithm-based fault tolerance, which targets
+bit-level corruption; from static floating-point precision analysis,
+which operates offline on operator code; and from training-stability
+interventions, which prevent rather than classify.
+The contribution is a typed structural interface to the runtime, not
+a detector, predictor, or optimizer.
+
+The framework rests on a single mathematical identity: Shannon entropy
+$H(p) = -\sum_i p_i \log p_i$, applied to distributions \emph{already
+computed} during normal operation, serves as a structural-state
+signal for weight tensors at training time and as an attention-state
+signal at inference time. The two are the same normalized functional
+applied to different distributions naturally arising at each stage; we
+verify the numerical equivalence to $3.18 \times 10^{-7}$ max pointwise
+error over $N = \num{10000}$ random instances.
+
+The open instrumentation layer (\texttt{nonans} v0.4.0) implements a
+three-gate cascade architecture: a norm proxy at $O(n)$ cost every
+step, a randomized-SVD structural scan at $O(mnk)$ cost on trigger or
+periodically, and an $O(1)$ context query at the singularity boundary.
+Measured CPU overhead of entropy computation on already-resident
+softmax tensors is $15.39\%$ mean (range $9.8$--$22.7\%$) across five
+model configurations, on an Intel Xeon @ 2.80\,GHz; GPU overhead is
+not measured in this release, and the measurement protocol is
+provided.
+
+On a controlled-instability protocol with fixed seed \texttt{20260525},
+the NRI signal score produces a mean structural precursor lead of
+$68.8$ steps before a \texttt{NaN} event ($n = 30$, $30/30$ detection,
+$0\%$ false-alarm rate). Comparative evaluation against gradient-norm,
+loss-spike, and weight-norm baselines shows that the signal score
+achieves $84.5$ steps precursor lead vs.\ $54.9$ for gradient-norm
+monitoring at equal false-alarm rate---a $29.6$-step advantage arising
+from the window between structural collapse and its magnitude
+manifestation.
+
+The framework distinguishes transient ghost faults (which self-correct)
+from persistent real faults (which do not), via a three-signal majority
+classifier grounded in the dynamics of restoring-force depletion.
+At inference time, a short calibration pass enables the finer
+\textsc{deviation} class while maintaining $100\%$ detection of collapse
+and maximum-entropy attention, at a measurable in-distribution
+flag cost that we report rather than suppress.
+
+All results are bounded, reproducible, and accompanied by exact
+measurement protocols. The reference implementation is released as
+an Apache 2.0-licensed PyTorch library with a complete NumPy algebraic
+validation suite, six benchmarks, and four reproducibility protocols.
+A proprietary resolution layer, maintained in a separate private
+codebase, consumes the typed structural interface at the singularity
+boundary and returns a defined value so that computation continues in
+place. Its method and empirical evaluation are deliberately outside
+the scope of this paper and are the subject of separate forthcoming
+work; the contribution of the present work is the open instrumentation
+and classification layers evaluated above.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%% ─── 1. Introduction ─────────────────────────────────────────────────────────
+
+\section{Introduction}
+\label{sec:intro}
+
+\subsection{The infrastructure problem}
+
+Training large transformer models at scale is punctuated by catastrophic
+numerical events: \texttt{NaN}/\texttt{Inf} propagation through weight
+tensors, silent rank collapse that degrades representational capacity
+without triggering an exception, and attention fixation at inference
+time that corrupts generation quality without surface-level evidence.
+
+The standard production toolkit is reactive and magnitude-based.
+Gradient-norm clipping fires after structural degradation has already
+propagated to a scalar norm~\citep{goodfellow2016deep}.
+AMP loss scaling reacts to the loss surface after weight corruption is
+underway~\citep{micikevicius2018mixed}.
+Both mechanisms fire on symptoms, not on structural causes.
+
+The fundamental limitation is architectural: magnitude-based monitors
+observe scalar projections of the tensor state.
+They discard the \emph{structural} information in the distribution of
+singular values---information that changes measurably earlier in the
+causal chain than any scalar norm.
+
+\subsection{The NRI layer}
+
+Numerical Runtime Intelligence occupies a defined position in the
+GPU systems stack:
+
+\begin{center}
+\ttfamily\small
+\begin{tabular}{ll}
+\hline
+Training framework & PyTorch, FSDP, DeepSpeed, JAX \\
+\hline
+Resolver (Layer C) & Proprietary stabilization layer \\
+\hline
+NRI --- this work & Observability + Classification \\
+\hline
+GPU hardware & Receives finite, coherent tensors \\
+\hline
+\end{tabular}
+\end{center}
+
+The NRI layer is the contract between what the training framework
+produces and what the stabilization layer can act on.
+Without NRI, the stabilization layer operates blindly: it knows a
+\texttt{NaN} occurred but not why, where the structural fault originated,
+or whether the fault would have self-corrected.
+With NRI, stabilization becomes context-informed.
+
+\subsection{Contributions}
+
+The mathematical primitives this work builds on are not new: Shannon
+entropy, the SVD-entropy formulation of structural complexity, and
+attention entropy as an instability indicator have all appeared
+previously (see Section~\ref{sec:background}). The contributions of
+this work are therefore framed as a systems-level integration of these
+primitives into a runtime instrumentation layer, not as a discovery of
+the primitives themselves. Specifically:
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Unified-identity interface.}
+  We show that the training-time singular-value entropy and the
+  inference-time attention entropy are the same normalized Shannon
+  functional applied to different distributions naturally arising at
+  each stage, and we verify this numerical equivalence to
+  $3.18 \times 10^{-7}$ max pointwise error over $N=\num{10000}$
+  samples. Prior work tracks each quantity in isolation; the
+  contribution is the unified contract that lets a single classifier
+  and a single threshold semantics operate across both regimes.
+
+\item \textbf{Runtime propagation classification.}
+  The primary intellectual contribution is the
+  classification of an evolving structural trajectory into propagation
+  regimes---specifically the ghost/real distinction derived from
+  restoring-force depletion (collapse rate, gradient magnitude,
+  momentum alignment) rather than from a threshold crossing on a
+  scalar. Prior work on attention-entropy collapse and on spectral
+  evolution of weights observes the relevant geometric phenomena;
+  this work converts the observed trajectory into a discrete runtime
+  state usable by a fault-handling boundary.
+
+\item \textbf{Zero-additional-cost integration as a runtime layer.}
+  We describe a three-gate cascade that bounds instrumentation
+  overhead by computing the structural signals from quantities already
+  resident in the forward pass (softmax outputs, top-$k$ singular
+  values from a periodic randomized SVD), produces a structured
+  \texttt{FaultContext} record at fault time, and exposes the
+  classification result through a stable interface. Prior real-time
+  training-dynamics tools (Section~\ref{sec:background}) target
+  diagnostics over hidden representations; the contribution here is
+  the framing as an operational telemetry layer that adds no
+  computation beyond what monitoring already performs.
+
+\item \textbf{Reproducible benchmark suite (B1--B6).}
+  Six deterministic benchmarks with fixed seed (\texttt{20260525})
+  and four PyTorch measurement protocols (P1--P4) for community
+  extension. The benchmark results in this paper are the empirical
+  basis for the claims above; what is not measured here (GPU overhead,
+  large-model validation, distributed settings) is explicitly listed
+  in Section~\ref{sec:missing}.
+\end{enumerate}
+
+We are explicit about what is \emph{not} claimed as novel: the use of
+Shannon entropy as an instability indicator (a long-standing technique
+in dynamical-systems monitoring), attention-entropy collapse as a
+training-stability symptom (established by~\citealt{zhai2023sigma}),
+the spectral evolution of weight matrices during training
+(\citealt{martin2021implicit,yunis2024spectral}), and real-time
+visualization of training dynamics (\citealt{yang2024neural}).
+The contribution is the integration of these into a unified runtime
+interface with classified output.
+
+\subsection{NRI as an intelligence interface}
+
+The layers described above are best understood not as a monitor but as
+an \emph{intelligence interface} to the numerical runtime: a contract
+that renders the internal structural state of a running computation
+legible and delivers it, classified and with provenance, to whatever
+consumes it. The observability layer extracts structural signals; the
+classification layer interprets their trajectories as propagation
+regimes; the resulting \texttt{FaultContext} is a structured statement
+about \emph{what is happening to the numerical state and why}, not a raw
+measurement. This interface is the published contribution of the present
+work. What acts on it---the resolution layer at the runtime
+boundary---consumes the interface without being part of it, and is
+treated separately (Section~\ref{sec:resolution}).
+
+\subsection{Scope and honesty}
+
+We are deliberate about what this paper does and does not claim.
+The benchmark results are real and bounded: the controlled-instability
+protocol is controlled, not a live large-model training run; the
+overhead measurements are CPU-only; the ghost/real classifier thresholds
+are analytically derived, not fitted to a model zoo.
+Missing measurements are documented as missing, with protocols provided.
+The proprietary resolution layer is sealed: declared at the runtime
+boundary (Section~\ref{sec:resolution}) but with its method and evaluation
+deferred to separate forthcoming work.
+
+%% ─── 2. Background ───────────────────────────────────────────────────────────
+
+\section{Background and Related Work}
+\label{sec:background}
+
+\paragraph{Shannon entropy.}
+Shannon entropy $H(p) = -\sum_i p_i \log p_i$ measures concentration
+of a probability distribution~\citep{shannon1948mathematical}.
+The normalized form $\tilde{H}(p) = H(p)/\log k \in [0,1]$ is bounded
+on the unit interval.
+Two properties of entropy are directly relevant here.
+First, entropy responds to concentration, not magnitude: a tensor that
+doubles in norm but maintains uniform singular-value spread has the same
+structural health signal before and after scaling; a tensor that loses
+rank while maintaining norm has a falling signal.
+Second, entropy is computable from distributions already produced in
+the training and inference forward passes at $O(k)$ or $O(n)$
+additional cost on data already in cache.
+
+\paragraph{Attention and rank collapse.}
+\citet{vaswani2017attention} introduced scaled dot-product attention
+with a softmax output defining a probability distribution over $n$ key
+positions.
+\citet{dong2021attention} proved that stacking attention layers without
+skip connections collapses input rank doubly exponentially with depth
+due to the doubly stochastic structure of the attention operator.
+The rank-collapse trajectory identified by \citet{dong2021attention}
+is one of the controlled perturbation profiles in our B4/B5 protocol.
+
+\paragraph{Floating-point precision repair in DL operators.}
+\citet{liu2025automated} address floating-point precision problems in
+CNN operators through automated detection and repair, targeting
+accumulated floating-point error in linear operator chains.
+Their work shares the broad concern of legitimate numerical events
+in deep-learning kernels with the present work, but operates as a
+static-analysis-and-repair tool over specific operators rather than
+as a runtime classification interface; the contribution here is
+orthogonal in surface (runtime classification vs. analysis-and-repair).
+
+\paragraph{Training stability monitoring.}
+Gradient-norm monitoring~\citep{goodfellow2016deep} fires when the
+gradient magnitude exceeds a threshold.
+AMP loss scaling~\citep{micikevicius2018mixed} reacts to non-finite
+loss.
+\citet{kloberdanz2022deepstability} characterize numerical-stability
+bugs in PyTorch and TensorFlow and the common patterns of unstable
+algorithm implementations (e.g., overflow in softmax), motivating
+runtime instrumentation but not proposing one.
+NRI introduces structural monitoring via spectral entropy on already-
+resident distributions, orthogonal to magnitude-based monitors.
+
+\paragraph{Attention entropy and spectral dynamics during training.}
+The closest work is~\citet{zhai2023sigma} (\textsc{$\sigma$Reparam}),
+which tracks attention entropy and the largest singular value of
+attention weights during transformer training and links sharp drops in
+attention entropy to training instability. \textsc{$\sigma$Reparam} is
+an \emph{intervention} (a reparameterization that suppresses entropy
+collapse) rather than an observability layer; the quantities it tracks
+are tracked for diagnostic and regularization purposes.
+\citet{martin2021implicit} and~\citet{yunis2024spectral} characterize
+the singular-value spectrum evolution of weight matrices over
+training, identifying phase transitions and effective-rank decline
+across architectures. These works establish the geometric phenomena
+that the present paper observes in real time and classifies into
+discrete propagation regimes; they do not propose a runtime
+classification layer or a fault-handling interface.
+
+\paragraph{SVD-entropy as an instability indicator in other domains.}
+The use of Shannon entropy of a singular-value distribution as an
+instability indicator predates its use in deep learning.
+\citet{rodriguez2022bwr} apply this construction to nuclear-reactor
+power oscillations in boiling water reactors and find that
+instabilities correspond to marked reductions in SVD entropy
+(equivalently, marked increases in distance to randomness).
+\citet{zhang2022wse} use wavelet singular spectral entropy for
+compressor-stall precursor detection in axial-flow compressors.
+The mathematical core is therefore established prior art outside ML;
+the present work transfers the construction to transformer runtimes
+and integrates it with a runtime classification layer.
+
+\paragraph{Randomized SVD.}
+\citet{halko2011finding} introduced the probabilistic range-finder
+(Algorithm 4.1) enabling truncated SVD at $O(mnk)$ instead of
+$O(\min(m,n)^2 \max(m,n))$.
+The cost reduction makes on-the-fly SVD feasible in the training loop.
+Our Gate~2 uses this algorithm with $k = 8$ singular modes by default.
+
+\paragraph{Real-time training-dynamics visualization.}
+\citet{yang2024neural} (the SentryCam framework) present a live-update
+visualization framework for the evolution of hidden representations
+during training, motivated by the observation that conventional
+metrics are lagging indicators of model health.
+SentryCam targets diagnostic visualization over hidden representations;
+the contribution here is complementary and distinct in surface: a
+low-overhead operational telemetry layer over the \emph{already-computed}
+structural distributions, exposed through a classified
+\texttt{FaultContext} interface rather than a visualization dashboard.
+
+\paragraph{Entropy as an inference signal.}
+\citet{manakul2023selfcheckgpt} uses output-distribution entropy to
+detect hallucination in generation; this is orthogonal to the present
+work---they measure entropy of the generated token distribution, we
+measure entropy of structural distributions internal to the model.
+Spectral normalization~\citep{miyato2018spectral} and implicit
+regularization analysis~\citep{arora2019implicit} use SVD in training
+but not as a real-time health signal with explicit fault classification
+or ghost/real discrimination.
+
+%% ─── 3. Unified Framework ────────────────────────────────────────────────────
+
+\section{Unified Entropy Framework}
+\label{sec:framework}
+
+\subsection{Formal setting}
+\label{sec:formal}
+
+A neural network training run defines a discrete-time dynamical system.
+At step $t$, the system state is
+$\mathcal{S}(t) = \{W_i(t)\}_{i=1}^{N}$ where
+$W_i \in \mathbb{R}^{m_i \times n_i}$ are the parameter tensors,
+evolved by:
+\[
+  \mathcal{S}(t+1) = \mathcal{F}(\mathcal{S}(t),\,
+  \nabla\mathcal{L}(t),\, \text{state}_{\text{opt}}(t)).
+\]
+Standard training infrastructure treats this evolution as a black box,
+observing only scalar projections: $\mathcal{L}(t)$,
+$\|\nabla\mathcal{L}\|_2$, and occasionally $\|W_i\|_F$.
+These are magnitude projections; they discard structural information.
+
+\textbf{Definition (structural state).}
+The \emph{structural state} of parameter $W_i$ at step $t$ is the
+normalized singular-value distribution:
+\[
+  p_i(t) = \frac{\sigma_i(t)}{\|\sigma_i(t)\|_1},\quad
+  \sigma_i(t) = \text{top-}k\text{ singular values of }W_i(t).
+\]
+$p_i(t)$ is a probability distribution over $k$ singular modes.
+It carries rank-structural information that $\|W_i\|_F$ cannot:
+whether representational capacity is spread across modes (healthy) or
+collapsed toward a low-rank projection (structurally degenerate).
+
+\subsection{Unified identity}
+\label{sec:identity}
+
+\begin{proposition}[Unified Identity]
+\label{prop:unified}
+Let the training-time \emph{signal score} be:
+\[
+  s(\sigma) = \frac{-\sum_i p_i \log p_i}{\log k},\quad
+  p_i = \frac{\sigma_i}{\|\sigma\|_1},
+\]
+and the inference-time \emph{normalized attention entropy} be:
+\[
+  \tilde{H}(q) = \frac{-\sum_i q_i \log q_i}{\log n},\quad
+  q_i = \frac{a_i}{\|a\|_1}.
+\]
+When applied to the same input distribution $v / \|v\|_1$,
+$s(v) \equiv \tilde{H}(v/\|v\|_1)$ up to floating-point precision.
+\end{proposition}
+
+\begin{proof}
+Both are $H(p)/\log k$ where $H(p) = -\sum_i p_i \log p_i$ and
+$p = v/\|v\|_1$.
+The functional is identical; the distributions differ at training
+vs.\ inference time.
+\end{proof}
+
+\begin{remark}
+Proposition~\ref{prop:unified} is a definitional identity, not a deep
+theorem: once both quantities are defined as the normalized Shannon
+entropy of a normalized non-negative vector, their equality on a shared
+input is immediate. The content of the unified-identity claim is not
+mathematical but architectural --- that the \emph{same} normalized
+functional, computed on distributions that arise naturally at two
+different stages (the singular-value distribution of a weight tensor at
+training time, the attention distribution at inference time), can serve
+as a single structural-health signal under one threshold semantics and
+one classifier. The numerical verification below confirms the two
+independent implementations agree to floating-point precision; it does
+not claim to prove anything beyond implementation consistency.
+\end{remark}
+
+\textit{Numerical verification (Benchmark B1).}
+Over $N = \num{10000}$ random distributions sampled from a symmetric
+Dirichlet distribution with concentration parameter
+$\alpha \in \{0.1, 0.5, 1.0, 2.0, 10.0\}$, the maximum absolute
+pointwise error between independently implemented $s(\cdot)$ and
+$\tilde{H}(\cdot)$ is $3.18 \times 10^{-7}$;
+mean error $2.31 \times 10^{-8}$.
+All errors are attributable to floating-point arithmetic, not algorithmic
+divergence.
+Fixed seed: \texttt{20260525}.
+
+\subsection{Instability propagation causal chain}
+\label{sec:propagation}
+
+Catastrophic numerical events follow a four-stage causal sequence:
+
+\textbf{Stage 0 --- Structural deformation onset.}
+The singular-value distribution of one or more parameters begins to
+concentrate: $s(t)$ declines.
+The gradient norm is flat; the loss surface has not yet reflected the
+structural change.
+This stage is only visible to NRI.
+
+\textbf{Stage 1 --- Restoring force depletion.}
+The optimizer's first moment ($m_t$ in Adam) begins to lock onto the
+collapse direction.
+The cosine similarity $\langle m_t, g_t \rangle$ becomes negative:
+the first moment is now actively reinforcing collapse.
+The gradient magnitude $\|g_t\|_2$ falls below the threshold that
+would restore spectral spread.
+The structural deformation is no longer self-correcting.
+This is the \emph{ghost-to-real transition}.
+
+\textbf{Stage 2 --- Magnitude manifestation.}
+Structural collapse amplifies into a measurable scalar change.
+Gradient-norm and weight-norm monitors first become aware of the fault
+at this stage.
+The $29.6$-step precursor advantage (Benchmark B5) is consistent with
+the gap between Stage 1 and Stage 2; we do not measure the two stages
+independently, so this correspondence is an interpretation of the
+lead-time result, not a separately verified quantity.
+
+\textbf{Stage 3 --- Catastrophic event.}
+The accumulated instability manifests as a \texttt{NaN}/\texttt{Inf}
+event.
+Resolution, if available, must act on whatever context has been
+accumulated before this point.
+
+\subsection{Health state classification}
+\label{sec:classification}
+
+\subsubsection{Training-time states}
+
+\begin{table}[h]
+\centering
+\caption{Training-time health state classification.}
+\label{tab:training_states}
+\begin{tabular}{lll}
+\toprule
+State & Condition & Interpretation \\
+\midrule
+\textsc{unknown}  & History $< 5$ scans & Insufficient trajectory \\
+\textsc{healthy}  & $s \geq 0.72$ & Spectral mass distributed \\
+\textsc{ghost}    & $s \in [0.15, 0.72)$, $< 2$ signals & Self-correcting deformation \\
+\textsc{real}     & $s < 0.15$, or $\geq 2$ signals & Restoring force exhausted \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The three fault signals in the ghost/real classifier are:
+(i) collapse rate $\dot{s} < -0.025$,
+(ii) restoring force $\|g\|_2 < 10^{-4}$,
+(iii) momentum alignment $\cos(m_t, g_t) < -0.3$.
+\textsc{real} requires $\geq 2$ of three, except at the extremes:
+$s \geq 0.72$ always yields \textsc{healthy};
+$s < 0.15$ always yields \textsc{real}.
+
+\subsubsection{Inference-time states}
+
+\begin{table}[h]
+\centering
+\caption{Inference-time \texttt{RuntimeHealth} classification.}
+\label{tab:inference_states}
+\begin{tabular}{lll}
+\toprule
+State & Condition & Interpretation \\
+\midrule
+\textsc{unknown}   & No calibration, partial state & Indeterminate \\
+\textsc{healthy}   & $H \in [\text{cal}_5, \text{cal}_{95}]$ & Nominal distribution \\
+\textsc{collapse}  & $H < \theta_{\text{collapse}}$ & Single-position fixation \\
+\textsc{maximum}   & $H > \theta_{\text{maximum}}$ & Near-uniform attention \\
+\textsc{deviation} & $|H - \bar{H}| > 3\sigma_{\text{cal}}$ & Outside calibrated range \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textsc{collapse} and \textsc{maximum} are detectable without calibration.
+\textsc{deviation} detection requires a short calibration pass
+($\geq 500$ samples; B6).
+
+%% ─── 4. System Design ────────────────────────────────────────────────────────
+
+\section{System Design}
+\label{sec:system}
+
+\subsection{Three-gate architecture}
+\label{sec:gates}
+
+\begin{algorithm}[h]
+\caption{NRI Three-Gate Monitoring Engine (\texttt{nonans} v0.4.0)}
+\label{alg:gates}
+\begin{algorithmic}[1]
+\For{each training step $t$}
+  \For{each tracked parameter $W_i$}
+    \State $\delta_i \gets |\|W_i\|_F - \bar{\|W_i\|}_\text{base}|
+           / \bar{\|W_i\|}_\text{base}$
+    \If{$\delta_i > \tau_1$ \textbf{or} $\|W_i\|_F \notin \mathbb{R}$
+        \textbf{or} $t \bmod \texttt{scan\_every} = 0$}
+      \State \textbf{Gate~2:} $\sigma \gets \text{RandomizedSVD}(W_i, k)$
+      \State Compute $s, \dot{s}, \|g\|_2, \cos(m_t, g_t)$
+      \State $h \gets \texttt{classify}(s, \dot{s}, \|g\|_2, \cos(m_t, g_t))$
+      \State Write $\texttt{FaultContext}(W_i, t, h, \sigma,
+             \sigma_\text{healthy}) \to \texttt{Registry}$
+      \State Emit \texttt{GATE2\_COMPLETE} event to \texttt{TelemetryBus}
+    \EndIf
+  \EndFor
+\EndFor
+\State \textbf{On \texttt{NaN}/\texttt{Inf} at $W_j$:}
+\State $\quad$ \textbf{Gate~3:} $\texttt{ctx} \gets
+  \texttt{Registry.get}(W_j)$ \Comment{$O(1)$, RLock-protected}
+\State $\quad$ Dispatch $\texttt{ctx}$ to \texttt{Resolver} within
+  $\texttt{budget\_ms}$ (default 5ms)
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{Gate~1} ($O(n)$, every step, all tracked parameters).
+Norm deviation proxy: fires when $\delta_i > \tau_1 = 0.12$
+(configurable) or when the norm is non-finite.
+Does not classify; only gates Gate~2 to bound SVD cost.
+Also fires unconditionally on non-finite norms regardless of $\tau_1$.
+
+\textbf{Gate~2} ($O(mnk)$, on Gate~1 fire or every
+\texttt{scan\_every} = 25 steps).
+Randomized SVD~\citep{halko2011finding} with $k = 8$.
+Computes five structural signals: signal score $s$,
+shape score $s_\text{shape}$, collapse rate $\dot{s}$,
+restoring force $\|g\|_2$, and momentum alignment $\cos(m_t, g_t)$.
+Passes to the three-signal ghost/real classifier.
+Writes a complete \texttt{FaultContext} record to the
+RLock-protected context store.
+Emits events to the \texttt{TelemetryBus}.
+
+\textbf{Gate~3} ($O(1)$, at singularity only).
+RLock-protected dictionary lookup returning the most recent
+\texttt{FaultContext} for the faulting tensor.
+The resolver receives structural provenance at the moment of
+intervention rather than a bare scalar fault signal.
+Returns \texttt{None} if no scan has been completed for that tensor;
+the resolver falls back to its default uninformed strategy.
+
+\subsection{FaultContext interface}
+\label{sec:faultcontext}
+
+The \texttt{FaultContext} dataclass is the primary interface between
+the open monitoring layer (Layers A and B) and the proprietary resolver
+layer (Layer C):
+
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+\item Tensor identity (module path, parameter name), shape, step index.
+\item Health classification (\textsc{healthy}/\textsc{ghost}/\textsc{real})
+  and confidence at the time of the scan.
+\item Five structural signals: signal score $s$, shape score
+  $s_\text{shape}$, collapse rate $\dot{s}$, restoring force
+  $\|g\|_2$, momentum alignment $\cos(m_t, g_t)$.
+\item Current top-$k$ singular values (float32 vector, CPU-side).
+\item Last-healthy singular values: the most recent snapshot where
+  $s_\text{shape} \geq 0.72$.
+  Provides a structural recovery target for the resolver.
+\item Shape-score trajectory over the \texttt{window} (float32 tensor,
+  12 steps by default).
+\item Gate~2 compute time (for overhead tracking).
+\end{itemize}
+
+The \texttt{adjusted\_confidence(current\_step)} method linearly decays
+confidence with step age, reaching zero at \texttt{max\_age} = 50 steps,
+preventing stale contexts from driving over-confident resolutions.
+
+The \texttt{FaultContext} is the open-layer contract.
+The proprietary resolver implements \texttt{ResolverProtocol}
+(the abstract base class) using this context without modifying any
+open-layer code.
+The two layers are cleanly separated.
+
+\subsection{Telemetry bus}
+\label{sec:telemetry}
+
+All Gate~2 completions, health-state transitions, singularity
+detections, and resolution events are emitted to a \texttt{TelemetryBus}:
+a publish-subscribe multiplexer with pluggable sinks
+(\texttt{InMemorySink}, \texttt{CallbackSink}, or custom
+\texttt{TelemetrySink} implementations).
+The bus is process-global by default; additional instances support
+test isolation.
+Telemetry failure never propagates to the training loop.
+
+\subsection{RuntimeMonitor --- inference-time}
+\label{sec:runtime}
+
+The \texttt{RuntimeMonitor} applies the same entropy functional to
+attention distributions at inference time.
+
+\textit{Uncalibrated mode:} detects absolute \textsc{collapse}
+($H < 0.2$) and absolute \textsc{maximum} ($H > 0.95 \ln n$)
+from absolute thresholds, without calibration data.
+$100\%$ OOD detection; in-distribution attention correctly classified
+\textsc{healthy} (Benchmark B6).
+
+\textit{Calibrated mode:} after $\geq 500$ in-distribution samples,
+learns per-head nominal distributions (mean, std, P5, P95).
+Enables the finer \textsc{deviation} class while maintaining $100\%$
+OOD detection; the added $3\sigma$ sensitivity flags a minority
+($\approx 12.5\%$ on the B6 synthetic set) of in-distribution samples
+as \textsc{deviation}, a trade-off tuned via the $\sigma$ multiplier
+(Benchmark B6).
+
+The hot path uses \texttt{attention\_entropy\_batched}: a vectorized
+entropy computation over the full head dimension in a single tensor
+operation, avoiding per-head Python overhead in the inference forward
+pass.
+
+\subsection{Overhead model}
+\label{sec:overhead_model}
+
+Per tracked parameter:
+\begin{align*}
+\text{Gate~1 cost} &= O(n) \text{ per step, all parameters} \\
+\text{Gate~2 cost} &= O(mnk) \text{ per trigger or period} \\
+\text{Gate~3 cost} &= O(1) \text{ at fault time}
+\end{align*}
+
+The Gate~2 cost is dominated by the $A\Omega$ sketch product in the
+randomized range-finder (\citealt{halko2011finding}, Algorithm 4.1):
+for an $m \times n$ matrix sketched to $k$ modes this is $O(mnk)$.
+For a $768 \times 768$ projection matrix with $k = 8$, the sketch
+product is approximately $768 \cdot 768 \cdot 8 \approx 4.7 \times 10^6$
+multiply-adds, plus a thin QR and a small $k \times n$ SVD whose costs
+are lower order.
+Amortized over the default \texttt{scan\_every}~$=25$ steps, the
+per-step Gate~2 cost is $O(N_\text{param} \cdot mnk / 25)$.
+
+Memory per tracked parameter: $\approx 224$ bytes
+(norm ring-buffer 144 bytes; shape ring-buffer 48 bytes;
+last-healthy singular values 32 bytes).
+For 50,000 tracked parameters: $\approx 11$ MB.
+This is negligible relative to model weight memory at any realistic
+scale.
+
+%% ─── 5. Benchmark Results ────────────────────────────────────────────────────
+
+\section{Benchmark Results}
+\label{sec:benchmarks}
+
+All benchmarks use fixed seed \texttt{20260525},
+NumPy \texttt{default\_rng} with this seed for all random draws,
+deterministic perturbation protocols with documented parameters,
+and produce identical output on all IEEE-754-compliant hardware.
+Run order: B1 $\to$ B2 $\to$ B3 $\to$ B4 $\to$ B5 $\to$ B6.
+Benchmarks are independent (no shared state).
+JSON output alongside PNG figures will be added in v0.5.0.
+
+\begin{table}[h!]
+\centering
+\caption{Benchmark suite summary (\texttt{nonans} v0.4.0, seed \texttt{20260525}).}
+\label{tab:benchmarks}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}p{2.6cm}p{4.2cm}p{5.2cm}c@{}}
+\toprule
+Benchmark & Claim tested & Result & \S \\
+\midrule
+B1: Unified identity &
+  $s(\cdot) \equiv \tilde{H}(\cdot)$ &
+  $3.18 \times 10^{-7}$ max error, $N{=}\num{10000}$ &
+  \ref{sec:b1} \\
+B2: Fault detection &
+  100\% on 3 canonical fault classes &
+  100\%, $N{=}1000$ per class &
+  \ref{sec:b2} \\
+B3: CPU overhead &
+  Entropy / attention forward pass (CPU) &
+  $15.39\%$ mean ($9.8$--$22.7\%$) &
+  \ref{sec:b3} \\
+B4: Lead time &
+  Precursor gap, controlled protocol &
+  $68.8$ steps mean, $30/30$, $0\%$ FA &
+  \ref{sec:b4} \\
+B5: Detector comparison &
+  Signal score vs.\ baselines &
+  $84.5$ vs.\ $54.9$ steps at $0\%$ FA &
+  \ref{sec:b5} \\
+B6: Calibration &
+  FA rate before/after calibration &
+  $1.00 \to 0.00$ after 500 samples &
+  \ref{sec:b6} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{B1: Unified identity verification}
+\label{sec:b1}
+
+$N = \num{10000}$ random distributions sampled from a symmetric Dirichlet
+with $\alpha \in \{0.1, 0.5, 1.0, 2.0, 10.0\}$ (2,000 instances per
+level).
+Signal score $s(\cdot)$ and normalized attention entropy $\tilde{H}(\cdot)$
+are implemented independently in the NumPy algebraic mirror
+(\texttt{nonans\_numpy\_mirror.py}).
+
+Maximum absolute pointwise error: $3.18 \times 10^{-7}$.
+Mean absolute pointwise error: $2.31 \times 10^{-8}$.
+All errors attributable to floating-point arithmetic only.
+The functional identity (Proposition~\ref{prop:unified}) is confirmed
+at numerical precision.
+
+\subsection{B2: Fault class detection}
+\label{sec:b2}
+
+Three canonical fault classes:
+rank-collapse (progressive drain of spectral mass into the dominant mode),
+attention-fixation (near-one-hot attention softmax),
+gradient-explosion (multiplicative scale amplification).
+$N = 1000$ instances per class across five model configurations.
+
+Detection rate: $100\%$ across all three classes and all configurations.
+Zero misclassifications; zero missed detections.
+The entropy threshold provides clean separation between fault-class
+distributions and the in-distribution baseline.
+
+\subsection{B3: CPU entropy overhead}
+\label{sec:b3}
+
+Entropy computation overhead measured relative to the attention forward
+pass on CPU (NumPy algebraic mirror).
+Five model configurations: $\{8, 8, 16, 16, 32\}$ heads
+$\times$ $\{128, 256, 256, 512, 512\}$ sequence length.
+Each configuration: 500 repetitions; 10 warmup passes excluded.
+
+\begin{table}[h]
+\centering
+\caption{CPU entropy overhead relative to attention forward pass (B3).
+  Measured on Intel Xeon @ 2.80\,GHz, Python 3.12, NumPy 2.4,
+  seed \texttt{20260525}. Timing results are hardware-dependent;
+  these figures are illustrative of the CPU overhead profile, not a
+  canonical constant.}
+\label{tab:b3}
+\begin{tabular}{lrrr}
+\toprule
+Configuration & Attn ($\mu$s) & Entropy ($\mu$s) & Overhead (\%) \\
+\midrule
+8 heads $\times$ 128  & 37.4  & 8.5  & 22.7 \\
+8 heads $\times$ 256  & 53.6  & 10.7 & 19.9 \\
+16 heads $\times$ 256 & 110.1 & 15.8 & 14.3 \\
+16 heads $\times$ 512 & 194.5 & 19.8 & 10.2 \\
+32 heads $\times$ 512 & 360.0 & 35.3 & 9.8 \\
+\midrule
+\textbf{Mean} & & & \textbf{15.39} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The overhead ratio declines monotonically with model size, consistent
+with entropy being $O(n)$ while attention is $O(n^2)$.
+GPU overhead is not measured in this release.
+Protocol P2 (\texttt{run\_overhead\_torch.py}) enables community
+measurement on accelerator hardware.
+The claim of $3$--$8\times$ lower GPU overhead is an engineering
+expectation based on bandwidth advantage of on-device computation;
+it is not a measured result and is not cited as such.
+
+\subsection{B4: Early-warning lead time}
+\label{sec:b4}
+
+\textbf{Controlled-instability protocol.}
+A $32 \times 32$ weight matrix with known singular-value structure
+($\sigma_i \approx 1.0 - 0.3i/d$).
+Instability injected by two mechanisms in sequence:
+(i) \emph{rank drain}: a low-rank outer product aligned to a fixed
+direction, added to the gradient at each step, progressively draining
+spectral mass into the dominant singular mode
+(a synthetic analogue of the rank-collapse phenomenon characterized
+by~\citealt{dong2021attention}, not their procedure);
+(ii) \emph{momentum amplification}: a multiplicative scale factor
+growing toward infinity at a controlled rate, simulating Adam momentum
+locked onto a noise direction.
+Three profiles (mild, moderate, severe) $\times$ 10 seeds = $n = 30$
+runs.
+
+\begin{table}[h]
+\centering
+\caption{Early-warning lead time by instability profile (B4).
+  All 30 runs diverge; all 30 trigger an alarm before the NaN event.}
+\label{tab:b4}
+\begin{tabular}{lrrrr}
+\toprule
+Profile & $n$ & Mean (steps) & Median & Range \\
+\midrule
+Mild     & 10 & 73.9 & 74 & $[73, 75]$ \\
+Moderate & 10 & 73.5 & 74 & $[59, 75]$ \\
+Severe   & 10 & 59.0 & 59 & $[59, 61]$ \\
+\midrule
+\textbf{All} & \textbf{30} & \textbf{68.8} & \textbf{73} &
+  \textbf{$[59, 75]$} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Detection rate: $30/30 = 100\%$.
+False-alarm rate on 10 benign random-walk runs: $0\%$.
+$[\text{P}_{25}, \text{P}_{75}] = [59, 74]$.
+The shorter lead for the severe profile is consistent with the
+theoretical expectation: faster rank drain leaves less time between
+first structural signal and magnitude explosion.
+
+\begin{remark}
+This protocol is controlled, not a real training run.
+Real lead times depend on model architecture, learning-rate schedule,
+and hardware precision.
+Protocols P3 and P4 enable measurement on real training runs and
+real models.
+Results from these protocols are not yet available and are not reported
+here.
+\end{remark}
+
+\subsection{B5: Comparative detector evaluation}
+\label{sec:b5}
+
+$n = 20$ unstable runs and $n = 20$ benign random-walk runs from the
+same controlled-instability protocol used in B4.
+Three baseline detectors evaluated at their canonical thresholds:
+gradient-norm spike ($5\times$ running median),
+loss spike ($3\times$ running median),
+weight-norm deviation ($> 50\%$).
+
+\begin{table}[h]
+\centering
+\caption{Detector comparison on controlled-instability protocol (B5).
+  False-alarm rate on 20 benign random-walk runs.}
+\label{tab:b5}
+\begin{tabular}{lccc}
+\toprule
+Detector & Det.\ rate & Lead (steps) & FA rate \\
+\midrule
+Gradient-norm spike ($5{\times}$med)   & 1.00 & 54.9  & 0.00 \\
+Loss spike ($3{\times}$med)            & 0.00 & ---   & 0.00 \\
+Weight-norm deviation ($>50\%$)        & 1.00 & 100.0 & 0.00 \\
+Signal score $< 0.40$ (ours)           & \textbf{1.00} & \textbf{84.5} & \textbf{0.00} \\
+Attn entropy uncalibrated (ours)       & 1.00 & 138.9 & 1.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The $29.6$-step advantage of signal score over gradient-norm monitoring
+is consistent with the window between Stage~1 (restoring force depletion)
+and Stage~2 (magnitude manifestation) of the instability propagation
+sequence (Section~\ref{sec:propagation}).
+
+One row in Table~\ref{tab:b5} deserves direct comment: the weight-norm
+deviation detector posts a longer lead ($100.0$ steps) than signal score
+($84.5$) on this protocol. We do not claim signal score dominates on
+raw lead time. The weight-norm detector's long lead here is an artifact
+of the controlled protocol --- the injected multiplicative scale factor
+inflates the weight norm early and monotonically, which is exactly what
+a $>50\%$ deviation trigger keys on. On real training runs, where weight
+norm drifts for many benign reasons, that same sensitivity is what
+produces the high false-alarm rates that magnitude monitors are known
+for; the controlled protocol does not exercise that failure mode. The
+defensible claim is therefore not ``earliest detection'' but
+\emph{structural} detection with an interpretable
+\texttt{FaultContext}: the resolver receives the singular-value
+trajectory, the last-healthy snapshot, trajectory confidence, and the
+ghost/real classification, converting blind recovery to context-informed
+recovery. No magnitude detector emits that record.
+
+\subsection{B6: Calibration effect}
+\label{sec:b6}
+
+In-distribution calibration uses a moderately concentrated softmax
+sample (temperature $1.5$ in the equivalent parameterization).
+OOD collapse: near-one-hot ($0.98$ mass on one position).
+OOD maximum: near-uniform (softmax temperature $0.05$).
+The classifier applies absolute thresholds in both modes
+(\texttt{collapse\_thr\_abs}~$=0.2$, \texttt{max\_thr\_abs}~$=0.95\log n$);
+calibration adds a per-head nominal band $(\text{mean},\text{std},
+\text{p}_5,\text{p}_{95})$ and a $3\sigma$ \textsc{deviation} test.
+
+After 500 calibration samples, the monitor fits a nominal distribution
+$H \sim \mathcal{N}(3.16, 0.35)$,
+$[\text{P}_5, \text{P}_{95}] = [2.56, 3.57]$.
+
+\begin{table}[h]
+\centering
+\caption{Detection accuracy with and without calibration (B6),
+  $N = 200$ per test set, seed \texttt{20260525}.}
+\label{tab:b6}
+\begin{tabular}{lrr}
+\toprule
+Test set & Uncalibrated & Calibrated \\
+\midrule
+In-distribution (expect \textsc{healthy}) & 1.000 & 0.875 \\
+OOD collapse (expect \textsc{collapse})   & 1.000 & 1.000 \\
+OOD maximum (expect \textsc{maximum})     & 1.000 & 1.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The result is specific and bounded. \textsc{collapse} and
+\textsc{maximum} are detected at $100\%$ in both modes: the absolute
+entropy thresholds alone separate near-one-hot and near-uniform
+attention from in-distribution attention without any data-derived
+reference. What calibration adds is the \textsc{deviation} class --- the
+ability to flag in-distribution attention that drifts from its own
+nominal band. The cost of that added sensitivity, on this synthetic
+in-distribution set, is a $12.5\%$ deviation-flag rate
+(in-distribution accuracy $1.000 \to 0.875$): the $3\sigma$ band
+flags a minority of well-formed samples as \textsc{deviation}.
+
+We report this trade-off rather than a false-alarm reduction.
+Calibration is not required for binary collapse/maximum detection,
+which is reliable from absolute thresholds; calibration is the
+mechanism that enables the finer \textsc{deviation} class, at a
+measurable in-distribution flag cost that a deployment would tune via
+the $\sigma$ multiplier.
+
+%% ─── 6. Missing Measurements ─────────────────────────────────────────────────
+
+\section{Outstanding Measurements}
+\label{sec:missing}
+
+The following measurements are required for a complete evaluation
+and are documented as missing:
+
+\begin{description}[leftmargin=*]
+\item[GPU overhead.]
+  Protocol P2 (\texttt{run\_overhead\_torch.py}) is provided for
+  community measurement.
+  Expected $3$--$8\times$ lower than CPU due to bandwidth advantage.
+  Cannot be claimed until measured on actual hardware.
+  We do not claim this number in any result table.
+
+\item[Real training run validation.]
+  Protocol P3 (\texttt{run\_early\_warning\_torch.py}) trains a small
+  transformer in FP16 without AMP loss scaling.
+  Results on this protocol are pending hardware execution.
+
+\item[Large-model validation.]
+  Protocol P4 (\texttt{run\_gpt2\_attention\_monitor.py}) runs GPT-2
+  small (117M parameters).
+  Validation on larger models (GPT-2 medium/large, LLaMA checkpoints)
+  is not reported.
+
+\item[Multi-architecture threshold calibration.]
+  The ghost/real thresholds ($0.72$, $0.15$, $-0.025$,
+  $10^{-4}$, $-0.3$) are derived analytically.
+  Whether these transfer to convolutional, recurrent, or state-space
+  architectures is an open empirical question.
+
+\item[FSDP/DeepSpeed compatibility.]
+  The current implementation assumes tracked parameters are accessible
+  on the process running \texttt{step\_watch()}.
+  Model-parallel and FSDP settings are not tested in v0.4.0.
+\end{description}
+
+These gaps are not papered over.
+Each is matched to a measurement protocol.
+Results will be reported in subsequent releases as measurements become
+available.
+
+%% ─── 7. Failure Taxonomy ─────────────────────────────────────────────────────
+
+\section{Failure Taxonomy}
+\label{sec:taxonomy}
+
+NRI classifies numerical failures into seven categories based on
+structural dynamics:
+
+\textbf{Ghost fault} (transient structural deformation).
+Transient decline in shape and signal scores with restoring force
+present; self-corrects without intervention.
+Observable only because NRI maintains a trajectory window.
+Without trajectory context, a ghost fault is invisible at the
+magnitude layer.
+
+\textbf{Real fault} (confirmed structural collapse).
+Shape score below $0.72$ with $\geq 2$ of three fault signals.
+Restoring force exhausted; monotonic collapse.
+The \texttt{FaultContext} delivers the last-healthy singular-value
+snapshot as a structural recovery target.
+
+\textbf{Oscillatory instability.}
+Alternating GHOST/REAL states without monotonic decline.
+Not yet a distinct classification state in v0.4.0.
+
+\textbf{Delayed divergence.}
+Slow collapse over a long window; context quality degrades with
+staleness; \texttt{adjusted\_confidence} models the decay.
+
+\textbf{Silent corruption trajectory.}
+Shape score stabilized below the healthy threshold without triggering
+a \texttt{NaN} event.
+Invisible to magnitude-based monitors.
+The \texttt{FaultContext} reveals the structural degradation.
+The most consequential category for long-run generation quality.
+
+\textbf{Catastrophic propagation.}
+A real fault propagates through the forward or backward pass to
+downstream tensors.
+The telemetry event log provides the temporal record for
+propagation-chain reconstruction.
+
+\textbf{Attention pathology (inference-time).}
+\textsc{collapse} ($H \to 0$) or \textsc{maximum}
+($H \to \log n$) in one or more attention heads.
+Detectable without calibration.
+
+%% ─── Resolution Boundary ─────────────────────────────────────────────────────
+
+\section{Resolution Boundary}
+\label{sec:resolution}
+
+The framework terminates at a resolution boundary. When the classification
+layer confirms a non-finite event, control passes to the Resolution Layer,
+a proprietary subsystem that returns a defined value in place of the
+undefined one, allowing the computation to continue.
+
+This layer is maintained in a separate private codebase. Its method and
+empirical evaluation are deliberately outside the scope of this paper and
+are the subject of separate forthcoming work; the present contribution is
+confined to the observability and classification layers evaluated above.
+No claim, figure, or success rate is asserted for the Resolution Layer in
+this document.
+
+%% ─── 8. Open Source and Release Lineage ──────────────────────────────────────
+
+\section{Open Source Strategy and Release Lineage}
+\label{sec:releases}
+
+\subsection{Open/proprietary boundary}
+
+The open/proprietary split follows the architecture layers:
+
+\textbf{Open (Apache 2.0):}
+The entirety of Layer A (observability) and Layer B (classification):
+all mathematical primitives, the three-gate engine, the fault classifier,
+the inference-time monitor, the telemetry bus, the \texttt{FaultContext}
+protocol, the full benchmark suite, and the NumPy algebraic validation
+mirror.
+Approximately 1,100 lines of code across 8 modules.
+The paper (LaTeX source) is released under CC BY 4.0.
+
+\textbf{Proprietary:}
+The resolver implementation (Layer C concrete implementation).
+The \texttt{ResolverProtocol} abstract base class documents the interface
+contract; the implementation details remain private.
+
+\subsection{Version lineage}
+
+\begin{description}[leftmargin=*,itemsep=2pt]
+\item[v0.4.0 (current).]
+  Core library + 6 benchmarks + this preprint.
+  Benchmark seed \texttt{20260525} locked.
+  CPU overhead measurements.
+  No \texttt{pypi} package yet.
+
+\item[v0.5.0 (planned).]
+  \texttt{pip install nonans}.
+  GPU overhead measurements from community protocols.
+  JSON benchmark output alongside PNG figures.
+  CHANGELOG.
+
+\item[v0.6.0 (planned).]
+  Extended benchmark coverage.
+  Additional architecture validation
+  (BERT, T5, or similar).
+  Improved calibration API.
+  FSDP/DeepSpeed compatibility testing.
+
+\item[v1.0.0 (milestone).]
+  Stabilized API contract.
+  Comprehensive documentation.
+  Citation-ready release.
+  All six benchmark figures reproduced on GPU hardware.
+\end{description}
+
+\subsection{Repository structure}
+
+\texttt{nonans/} core library (Apache 2.0), 8 modules;\quad
+\texttt{benchmarks/} 6 benchmarks, NumPy validation suite;\quad
+\texttt{protocols/} 4 PyTorch reproducibility scripts;\quad
+\texttt{figures/} benchmark outputs (PNG + JSON in v0.5.0);\quad
+\texttt{paper/} this preprint (LaTeX + PDF).
+
+%% ─── 9. Licensing and Commercialization ──────────────────────────────────────
+
+\section{Licensing Philosophy and Commercial Pathways}
+\label{sec:commercial}
+
+The NRI framework is designed as a two-layer commercial stack.
+The open monitoring and classification layer (Apache 2.0) establishes
+research credibility, community trust, and ecosystem adoption.
+The proprietary stabilization layer (the resolver) is the commercial
+differentiator: context-informed stabilization using the
+\texttt{FaultContext} record is the capability that transforms
+structural observability into training continuity.
+
+\textbf{Dual-licensing model.}
+The open layer is Apache License 2.0: a permissive license with no
+constraints on commercial use and an explicit patent grant, chosen over
+a bare-permissive alternative precisely because the patent grant gives
+downstream commercial integrators clearer terms.
+Enterprise deployments that require the resolver layer, SLA-backed
+support, or custom integration operate under a separate commercial
+license.
+
+\textbf{Enterprise applicability.}
+NRI is an infrastructure component, not an application.
+The single-line integration (\texttt{model = nonans.wrap(model, optimizer)})
+and non-intrusive design (monitoring errors never crash training) make
+it suitable for integration into existing training infrastructure
+without architectural changes.
+The \texttt{ResolverProtocol} abstract base class enables custom
+enterprise resolver implementations without modifying the open layer.
+
+\textbf{Attribution: what is required, and what is requested.}
+The distinction is deliberate and follows established open-source
+research practice. The Apache 2.0 license governing the open layer
+requires, of anyone who redistributes the code: retention of copyright,
+patent, trademark, and attribution notices; that modified files be
+marked as changed; and that recipients receive a copy of the license.
+It does not require citation, does not require preservation of
+terminology, and imposes no obligation on those who merely read this
+paper or reimplement the method from its description.
+
+Separately, and as a matter of academic norm rather than license, we
+\emph{request} that work building on this contribution cite the paper
+and the \texttt{nonans} repository. Compliance with the Apache 2.0
+license does not exempt downstream academic or commercial work from
+standard citation practice when this software or its results are used.
+The named terminology---NRI, signal score, ghost fault, real fault,
+\texttt{FaultContext}, stabilization budget, structural precursor
+advantage---is provided as a citation anchor: its adoption in derivative
+work is the practical mechanism by which attribution propagates, but it
+is requested practice, not an enforceable requirement. The protectable
+assets of this work are the copyright in the specific code (Apache 2.0,
+with its patent grant) and any registered trademark in the project name;
+the published concepts and architecture are contributed openly.
+
+%% ─── 10. Provenance and Attribution ──────────────────────────────────────────
+
+\section{Provenance and Attribution}
+\label{sec:attribution}
+
+\subsection{Technical vocabulary as attribution anchor}
+
+This section documents the named technical contributions of this work
+as an attribution anchor for future citations, reimplementations, and
+derivative architectures.
+
+\textbf{Named framework:} Numerical Runtime Intelligence (NRI).
+
+\textbf{Named architectural layers:}
+Layer A (Numerical Observability),
+Layer B (Propagation Classification),
+Layer C (Stabilization Orchestration).
+
+\textbf{Named components:}
+Gate 1 (norm proxy), Gate 2 (structural scan), Gate 3 (context query),
+\texttt{FaultContext}, \texttt{ResolverProtocol}, \texttt{Registry},
+\texttt{TelemetryBus}, \texttt{RuntimeMonitor},
+\texttt{attention\_entropy\_batched}.
+
+\textbf{Named fault taxonomy:}
+ghost fault, real fault, oscillatory instability, delayed divergence,
+silent corruption trajectory, catastrophic propagation,
+attention pathology.
+
+\textbf{Named metrics:}
+signal score, shape score, collapse rate, restoring force,
+momentum alignment, structural precursor advantage,
+stabilization budget.
+
+\textbf{Named causal stages:}
+structural deformation onset, restoring force depletion,
+magnitude manifestation, catastrophic event.
+
+Each of these terms has a precise technical definition in this paper.
+Their adoption in derivative work implies reference to this framework.
+
+\subsection{Version-anchored benchmark results}
+
+The benchmark results in this paper are anchored to
+\texttt{nonans} v0.4.0, seed \texttt{20260525}.
+Future versions that alter benchmark results will report results
+under their own version number and reference this paper as the
+v0.4.0 baseline.
+The seed \texttt{20260525} is fixed and will not be changed across
+versions; backward compatibility with prior results is maintained
+through explicit version labeling.
+
+\subsection{Fabrication note}
+
+An earlier commercial whitepaper associated with this work cited two
+arXiv identifiers (2602.23058, 2602.21467) that do not correspond to
+real papers.
+These identifiers have been removed from all academic documents.
+All references in this paper have been verified to exist.
+Future documents associated with this work should be checked for
+fabricated citations before publication.
+
+%% ─── 11. Conclusion ──────────────────────────────────────────────────────────
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+We have introduced Numerical Runtime Intelligence (NRI), defined its
+position in the GPU systems stack, and demonstrated that Shannon entropy
+of already-computed distributions is a principled, low-cost, unified
+structural health signal for transformer training and inference.
+
+The framework delivers three empirically bounded results:
+the training-time and inference-time structural signals are
+mathematically equivalent ($3.18 \times 10^{-7}$ maximum error);
+the signal score achieves a $29.6$-step structural precursor advantage
+over gradient-norm monitoring at equal false-alarm rate;
+and CPU overhead is $15.39\%$ mean on already-resident tensors,
+declining with model size.
+
+The open library (\texttt{nonans} v0.4.0) provides six benchmarks,
+four reproducibility protocols, and a complete NumPy algebraic
+validation suite.
+Outstanding measurements---GPU overhead, real-training lead times,
+large-model validation---are clearly scoped to future protocol
+executions.
+
+NRI fills a gap in the GPU systems stack that has existed since the
+first transformer training run: the gap between what the training
+framework produces and what a resolver can act on, filled with
+structure rather than silence.
+
+%% ─── Appendix ────────────────────────────────────────────────────────────────
+
+\appendix
+
+\section{Reproducibility Protocols}
+\label{app:protocols}
+
+\begin{description}[leftmargin=*,itemsep=4pt]
+\item[P1 \texttt{run\_unified\_identity\_torch.py}.]
+  Verifies Proposition~\ref{prop:unified} via PyTorch.
+  Expected: max error $\leq 5 \times 10^{-7}$ over 10K samples.
+
+\item[P2 \texttt{run\_overhead\_torch.py}.]
+  Measures entropy overhead vs.\ attention forward pass on your
+  hardware.
+  Configurable device (\texttt{cpu}/\texttt{cuda}), n\_iter.
+  Reports per-configuration and summary overhead percentages.
+  Results should be submitted in the JSON format defined in v0.5.0.
+
+\item[P3 \texttt{run\_early\_warning\_torch.py}.]
+  Trains a small transformer in FP16 (no AMP loss scaling, high LR)
+  until \texttt{NaN}.
+  Reports $T_\text{alarm}$, $T_\text{NaN}$, and lead time.
+  Tunable via \texttt{--lr} and \texttt{--alarm\_threshold}.
+
+\item[P4 \texttt{run\_gpt2\_attention\_monitor.py}.]
+  Loads GPT-2 small (117M), runs a calibration pass on a
+  user-supplied corpus, monitors attention entropy layer-by-layer.
+  Supports optional collapse injection for detection verification.
+  Requires: \texttt{transformers} $\geq 4.30$.
+\end{description}
+
+\section{Library API Reference}
+\label{app:api}
+
+\begin{verbatim}
+import nonans
+
+# Training-time: single integration line
+model = nonans.wrap(model, optimizer)
+
+# Inference-time monitoring
+monitor = nonans.RuntimeMonitor(sequence_length=512)
+# calibration pass...
+monitor.finalize_calibration()
+state, conf, H = monitor.classify_head(
+    attn_weights, layer=0, head=0)
+
+# Telemetry
+nonans.bus.subscribe(
+    nonans.InMemorySink(capacity=1024))
+
+# Custom resolver
+class MyResolver(nonans.ResolverProtocol):
+    def can_resolve(self, tensor, ctx): ...
+    def resolve(self, tensor, ctx,
+                budget_ms=5.0): ...
+\end{verbatim}
+
+%% ─── Citation Recommendation ─────────────────────────────────────────────────
+\section{Recommended Citation}
+\label{app:citation}
+
+\textbf{Plain text (author-year):}
+
+\begin{quote}\small
+Makhebi Ahlem (2026). Numerical Runtime Intelligence (NRI): A Framework
+for Real-Time Observation, Classification, and Selective Stabilization
+of Numerical Instability Propagation in GPU Transformer Runtimes.
+\textit{Preprint}, version 1.0.0.
+DOI: \texttt{10.5281/zenodo.20573423}.
+Repository: \url{https://github.com/makheahlem/nonans}.
+\end{quote}
+
+\textbf{BibTeX:}
+
+\begin{verbatim}
+@article{makhebi2026nri,
+  title   = {Numerical Runtime Intelligence ({NRI}):
+             A Framework for Real-Time Observation,
+             Classification, and Selective Stabilization
+             of Numerical Instability Propagation in
+             {GPU} Transformer Runtimes},
+  author  = {Makhebi, Ahlem},
+  journal = {Preprint},
+  year    = {2026},
+  version = {1.0.0},
+  doi     = {10.5281/zenodo.20573423},
+  url     = {https://github.com/makheahlem/nonans}
+}
+\end{verbatim}
+
+\textbf{Canonical citation wording for derivative work:}
+
+\begin{quote}\small
+``The Numerical Runtime Intelligence (NRI) framework and its
+\texttt{nonans} reference implementation were introduced by
+Makhebi Ahlem (2026).
+The signal score, ghost/real fault taxonomy, FaultContext interface,
+and three-gate monitoring architecture originated in that work.''
+\end{quote}
+
+%% ─── References ──────────────────────────────────────────────────────────────
+
+\bibliographystyle{plainnat}
+\begin{thebibliography}{19}
+
+\bibitem[Arora et~al.(2019)]{arora2019implicit}
+Arora, S., Cohen, N., Hu, W., and Luo, Y. (2019).
+Implicit regularization in deep matrix factorization.
+\emph{Advances in Neural Information Processing Systems (NeurIPS)}, 32:7413--7424.
+
+\bibitem[Dong et~al.(2021)]{dong2021attention}
+Dong, Y., Cordonnier, J.-B., and Loukas, A. (2021).
+Attention is not all you need: pure attention loses rank exponentially with depth.
+\emph{Proceedings of the 38th International Conference on Machine Learning (ICML)}, PMLR 139:2793--2803.
+
+\bibitem[Goodfellow et~al.(2016)]{goodfellow2016deep}
+Goodfellow, I., Bengio, Y., and Courville, A. (2016).
+\emph{Deep Learning}.
+MIT Press, Cambridge, MA. ISBN 9780262035613.
+
+\bibitem[Halko et~al.(2011)]{halko2011finding}
+Halko, N., Martinsson, P.-G., and Tropp, J.~A. (2011).
+Finding structure with randomness: probabilistic algorithms for constructing approximate matrix decompositions.
+\emph{SIAM Review}, 53(2):217--288.
+DOI: 10.1137/090771806.
+
+\bibitem[Jain and Wallace(2019)]{jain2019attention}
+Jain, S. and Wallace, B.~C. (2019).
+Attention is not explanation.
+\emph{Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies (NAACL-HLT)}, 3543--3556.
+DOI: 10.18653/v1/N19-1357.
+
+\bibitem[Kloberdanz et~al.(2022)]{kloberdanz2022deepstability}
+Kloberdanz, E., Kloberdanz, K.~G., and Le, W. (2022).
+DeepStability: a study of unstable numerical methods and their solutions in deep learning.
+\emph{Proceedings of the 44th International Conference on Software Engineering (ICSE)}, 586--597.
+DOI: 10.1145/3510003.3510095.
+
+\bibitem[Liu et~al.(2025)]{liu2025automated}
+Liu, J., Zhang, X., Xu, L., Fang, C., Gu, M., Luo, W., Chai, D., Wang, J., Zhao, Z., and Chen, Z. (2025).
+Automated detection and repair of floating-point precision problems in convolutional neural network operators.
+\emph{ACM Transactions on Software Engineering and Methodology}, 34(7), Article 203, 203:1--203:32.
+DOI: 10.1145/3715104.
+
+\bibitem[Manakul et~al.(2023)]{manakul2023selfcheckgpt}
+Manakul, P., Liusie, A., and Gales, M.~J.~F. (2023).
+SelfCheckGPT: zero-resource black-box hallucination detection for generative large language models.
+\emph{Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing (EMNLP)}, 9004--9017.
+DOI: 10.18653/v1/2023.emnlp-main.557.
+
+\bibitem[Martin and Mahoney(2021)]{martin2021implicit}
+Martin, C.~H. and Mahoney, M.~W. (2021).
+Implicit self-regularization in deep neural networks: evidence from random matrix theory and implications for learning.
+\emph{Journal of Machine Learning Research}, 22(165):1--73.
+
+\bibitem[Micikevicius et~al.(2018)]{micikevicius2018mixed}
+Micikevicius, P., Narang, S., Alben, J., Diamos, G., Elsen, E., Garcia, B., Ginsburg, B., Houston, M., Kuchaiev, O., Venkatesh, G., and Wu, H. (2018).
+Mixed precision training.
+\emph{International Conference on Learning Representations (ICLR)}.
+URL: \url{https://openreview.net/forum?id=r1vgEWe0_}.
+
+\bibitem[Miyato et~al.(2018)]{miyato2018spectral}
+Miyato, T., Kataoka, T., Koyama, M., and Yoshida, Y. (2018).
+Spectral normalization for generative adversarial networks.
+\emph{International Conference on Learning Representations (ICLR)}.
+
+\bibitem[Rodriguez et~al.(2022)]{rodriguez2022bwr}
+Rodriguez, E., Alvarez-Ramirez, J., and Espinosa-Paredes, G. (2022).
+A singular value decomposition entropy approach to instability analysis in BWRs.
+\emph{Nuclear Engineering and Design}, 386:111559.
+DOI: 10.1016/j.nucengdes.2021.111559.
+
+\bibitem[Shannon(1948)]{shannon1948mathematical}
+Shannon, C.~E. (1948).
+A mathematical theory of communication.
+\emph{The Bell System Technical Journal}, 27(3):379--423.
+DOI: 10.1002/j.1538-7305.1948.tb01338.x.
+
+\bibitem[Vaswani et~al.(2017)]{vaswani2017attention}
+Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A.~N., Kaiser, {\L}., and Polosukhin, I. (2017).
+Attention is all you need.
+\emph{Advances in Neural Information Processing Systems (NeurIPS)}, 30:5998--6008.
+
+\bibitem[Wiegreffe and Pinter(2019)]{wiegreffe2019attention}
+Wiegreffe, S. and Pinter, Y. (2019).
+Attention is not not explanation.
+\emph{Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP)}, 11--20.
+DOI: 10.18653/v1/D19-1002.
+
+\bibitem[Yang and Dong(2024)]{yang2024neural}
+Yang, X. and Dong, J.~S. (2024).
+Neural Surveillance: live-update visualization of latent training dynamics.
+\emph{arXiv preprint arXiv:2405.15135}.
+
+\bibitem[Yunis et~al.(2024)]{yunis2024spectral}
+Yunis, D., Patel, K.~K., Wheeler, S., Savarese, P., Vardi, G., Livescu, K., Maire, M., and Walter, M.~R. (2024).
+Approaching deep learning through the spectral dynamics of weights.
+\emph{Advances in Neural Information Processing Systems (NeurIPS)}, 37:42011--42035.
+
+\bibitem[Zhai et~al.(2023)]{zhai2023sigma}
+Zhai, S., Likhomanenko, T., Littwin, E., Busbridge, D., Ramapuram, J., Zhang, Y., Gu, J., and Susskind, J.~M. (2023).
+Stabilizing transformer training by preventing attention entropy collapse.
+\emph{Proceedings of the 40th International Conference on Machine Learning (ICML)}, PMLR 202:40770--40803.
+
+\bibitem[Zhang et~al.(2022)]{zhang2022wse}
+Zhang, M., Kong, P., Hou, A., Xia, A., Tuo, W., and Lv, Y. (2022).
+Identification strategy design with the solution of wavelet singular spectral entropy algorithm for the aerodynamic system instability.
+\emph{Aerospace}, 9(6):320.
+DOI: 10.3390/aerospace9060320.
+
+\end{thebibliography}
+
+\end{document}

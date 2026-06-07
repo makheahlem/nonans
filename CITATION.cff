@@ -1,0 +1,57 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+
+title: "nonansNRI: Numerical Runtime Intelligence (NRI) reference implementation"
+abstract: >
+  Reference implementation of the Numerical Runtime Intelligence (NRI)
+  framework (project: nonansNRI; commercial entity: nonans): a runtime
+  instrumentation layer for the real-time classification of legitimate
+  numerical events in transformer training and inference. Includes the
+  three-gate monitoring engine, ghost/real fault classifier, FaultContext
+  interface, six deterministic benchmarks (seed 20260525), four PyTorch
+  reproducibility protocols, and a pytest suite that asserts the locked
+  benchmark numbers as a regression gate. The proprietary resolution
+  layer at the runtime boundary is maintained in a separate private
+  codebase and is NOT in this repository.
+
+version: "0.4.0"
+date-released: "2026-05-27"
+license: Apache-2.0
+repository-code: "https://github.com/makheahlem/nonans"
+url: "https://github.com/makheahlem/nonans"
+doi: "10.5281/zenodo.20573423"
+
+authors:
+  - family-names: "Makhebi"
+    given-names: "Ahlem"
+    orcid: "https://orcid.org/0009-0007-7010-3282"
+    affiliation: "Independent Researcher"
+    email: "ahlemmakhebi@protonmail.com"
+
+keywords:
+  - numerical runtime intelligence
+  - nonansNRI
+  - nonans
+  - real-time classification
+  - legitimate numerical events
+  - structural health monitoring
+  - Shannon entropy
+  - singular value decomposition
+  - transformer training stability
+  - attention entropy
+  - fault classification
+
+preferred-citation:
+  type: article
+  title: "Numerical Runtime Intelligence: A Runtime Instrumentation Layer for Real-Time Classification of Legitimate Numerical Events in Transformer Training and Inference"
+  authors:
+    - family-names: "Makhebi"
+      given-names: "Ahlem"
+      orcid: "https://orcid.org/0009-0007-7010-3282"
+      affiliation: "Independent Researcher"
+  year: 2026
+  month: 5
+  journal: "Preprint"
+  doi: "10.5281/zenodo.20573423"
+  url: "https://doi.org/10.5281/zenodo.20573423"
