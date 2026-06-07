@@ -1,25 +1,26 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+message: "If you use this software, please cite both the software (this record) and the accompanying paper (preferred-citation below)."
 type: software
 
 title: "nonansNRI: Numerical Runtime Intelligence (NRI) reference implementation"
 abstract: >
-  Reference implementation of the Numerical Runtime Intelligence (NRI)
-  framework (project: nonansNRI; commercial entity: nonans): a runtime
-  instrumentation layer for the real-time classification of legitimate
-  numerical events in transformer training and inference. Includes the
-  three-gate monitoring engine, ghost/real fault classifier, FaultContext
-  interface, six deterministic benchmarks (seed 20260525), four PyTorch
-  reproducibility protocols, and a pytest suite that asserts the locked
-  benchmark numbers as a regression gate. The proprietary resolution
-  layer at the runtime boundary is maintained in a separate private
+  Open reference implementation of the Numerical Runtime Intelligence (NRI)
+  framework (project: nonansNRI; commercial entity: nonans): a
+  runtime-instrumentation layer for the real-time classification of legitimate
+  numerical events (overflow, structural rank collapse, attention concentration)
+  in transformer training and inference. Includes the three-gate monitoring
+  engine, the ghost/real propagation-regime classifier, the FaultContext /
+  ResolverProtocol interface, six deterministic benchmarks (seed 20260525), and
+  four self-validating PyTorch reproducibility protocols. The proprietary
+  resolution layer at the runtime boundary is maintained in a separate private
   codebase and is NOT in this repository.
 
 version: "0.4.0"
 date-released: "2026-05-27"
 license: Apache-2.0
+license-url: "https://www.apache.org/licenses/LICENSE-2.0"
 repository-code: "https://github.com/makheahlem/nonans"
-url: "https://github.com/makheahlem/nonans"
+url: "https://nonans.com"
 doi: "10.5281/zenodo.20573423"
 
 authors:
@@ -27,19 +28,35 @@ authors:
     given-names: "Ahlem"
     orcid: "https://orcid.org/0009-0007-7010-3282"
     affiliation: "Independent Researcher"
-    email: "ahlemmakhebi@protonmail.com"
+    email: "ahlem.makhebi@nonans.com"
+    website: "https://makhebiahlem.nonans.com"
+
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.20573423"
+    description: "Version DOI for nonansNRI v0.4.0 (this exact release)."
+  - type: doi
+    value: "10.5281/zenodo.CONCEPT_DOI"
+    description: "Concept DOI (all versions). Replace CONCEPT_DOI with the value assigned by Zenodo; cite this for 'any version'."
+  - type: url
+    value: "https://github.com/makheahlem/nonans"
+    description: "Canonical source repository."
 
 keywords:
-  - numerical runtime intelligence
+  - Numerical Runtime Intelligence
+  - NRI
   - nonansNRI
-  - nonans
-  - real-time classification
   - legitimate numerical events
-  - structural health monitoring
-  - Shannon entropy
-  - singular value decomposition
+  - propagation-regime classification
+  - structural precursor signal
   - transformer training stability
+  - training divergence
+  - mixed-precision training
   - attention entropy
+  - Shannon entropy
+  - randomized SVD
+  - structural health monitoring
+  - runtime observability
   - fault classification
 
 preferred-citation:
@@ -52,6 +69,6 @@ preferred-citation:
       affiliation: "Independent Researcher"
   year: 2026
   month: 5
-  journal: "Preprint"
+  journal: "Preprint (Zenodo)"
   doi: "10.5281/zenodo.20573423"
   url: "https://doi.org/10.5281/zenodo.20573423"

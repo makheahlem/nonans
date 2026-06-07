@@ -16,7 +16,7 @@ for transformer numerical health.
 [![Benchmarks](https://img.shields.io/badge/benchmarks-6%2F6%20reproduce-2ec87a)](#benchmarks)
 [![Version](https://img.shields.io/badge/version-0.4.0-9898ac)](#)
 
-[**Website**](https://nonans.com) · [**Researcher**](https://makhebiahlem.nonans.com) · [**Reel demo**](demo.html) · [**Pitch deck**](deck.html) · [**Preprint**](https://doi.org/10.5281/zenodo.20573423) · [**Cite**](#cite)
+[**Website**](https://nonans.com) · [**Researcher**](https://makhebiahlem.nonans.com) · [**Preprint**](https://doi.org/10.5281/zenodo.20573423) · [**Cite**](#cite)
 
 </div>
 
@@ -144,7 +144,7 @@ print(nonans.attention_entropy(sv))   # 1.4612
 ## Licensing & attribution
 
 Attribution is **mandatory** for the code and the paper, and **requested**
-for academic reuse. Full policy with copy-paste blocks: [`ATTRIBUTION.md`](ATTRIBUTION.md).
+for academic reuse. The binding mechanism is the [`NOTICE`](NOTICE) file together with the [`LICENSE`](LICENSE).
 
 - **Code (this repository):** Apache License 2.0. Redistribution requires
   retention of copyright, patent, trademark, and attribution notices;
@@ -161,24 +161,12 @@ for academic reuse. Full policy with copy-paste blocks: [`ATTRIBUTION.md`](ATTRI
 Citation is requested as a matter of academic norm; see `CITATION.cff` and
 the recommended-citation block in the preprint.
 
-## Web, media & metadata
+## Links
 
-| Surface | Where |
-|---|---|
-| Project site | [nonans.com](https://nonans.com) — `index.html` |
-| Researcher site | [makhebiahlem.nonans.com](https://makhebiahlem.nonans.com) — `researcher.html` |
-| Reel demo | `demo.html` — 60-second auto-playing walkthrough |
-| Pitch deck | `deck.html` — keyboard-navigable research/partnership deck |
-| Policies | `policies.html` — copyright, attribution, privacy, terms |
-
-Metadata is optimized for discoverability, attribution retention, and
-long-term citation propagation. Strategy and rationale: [`METADATA.md`](METADATA.md).
-Implementing files:
-
-- [`CITATION.cff`](CITATION.cff) — drives GitHub "Cite this repository"; software + paper citation, version lineage, ORCID.
-- [`codemeta.json`](codemeta.json) — schema.org/SoftwareSourceCode for CodeMeta-aware indexers and Software Heritage.
-- [`zenodo.json`](zenodo.json) — DataCite deposit metadata: tiered keywords, subjects, related identifiers, version lineage.
-- [`NOTICE`](NOTICE) / [`ATTRIBUTION.md`](ATTRIBUTION.md) — the binding attribution mechanism and full policy.
+- Project site: [nonans.com](https://nonans.com)
+- Researcher: [makhebiahlem.nonans.com](https://makhebiahlem.nonans.com)
+- Preprint: [doi.org/10.5281/zenodo.20573423](https://doi.org/10.5281/zenodo.20573423)
+- Citation metadata: [`CITATION.cff`](CITATION.cff) (drives GitHub "Cite this repository")
 
 Canonical citation name **Makhebi, Ahlem**, anchored by ORCID. Cite the
 **concept DOI** for "any version" and the **version DOI**
@@ -204,4 +192,4 @@ Canonical citation name **Makhebi, Ahlem**, anchored by ORCID. Cite the
 
 ---
 
-<sub>© 2026 nonans / Ahlem Makhebi. Website content and brand: all rights reserved. Code: Apache-2.0. Paper: CC BY 4.0. See [`policies.html`](policies.html).</sub>
+<sub>© 2026 nonans / Ahlem Makhebi. Website content and brand: all rights reserved. Code: Apache-2.0. Paper: CC BY 4.0.</sub>
