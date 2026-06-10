@@ -14,6 +14,7 @@ for transformer numerical health.
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20573423-7c6bff)](https://doi.org/10.5281/zenodo.20573423)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0007--7010--3282-a6ce39)](https://orcid.org/0009-0007-7010-3282)
 [![Benchmarks](https://img.shields.io/badge/benchmarks-6%2F6%20reproduce-2ec87a)](#benchmarks)
+[![Real-model](https://img.shields.io/badge/real--model-203%20step%20lead-7c6bff)](#real-model-validation)
 [![Version](https://img.shields.io/badge/version-0.4.0-9898ac)](#)
 
 [**Website**](https://nonans.com) · [**Researcher**](https://makhebiahlem.nonans.com) · [**Preprint**](https://doi.org/10.5281/zenodo.20573423) · [**Cite**](#cite)
@@ -89,14 +90,47 @@ python -m nonans.bench b1
 | B5 | Signal score vs gradient-norm at equal FA | `84.5` vs `54.9` (`29.6`-step advantage) |
 | B6 | Calibration enables DEVIATION detection | OOD detection `100%` both modes |
 
+## Real-model validation
+
+Beyond the synthetic benchmarks, the precursor signal is validated on a **real
+transformer trained to numerical divergence**: a 2-layer, 4-head GPT-style model
+(~109K parameters, real `nn.MultiheadAttention`). Training is driven unstable by
+learning-rate escalation until the loss reaches a non-finite value (NaN). The
+mean attention entropy declines monotonically as instability builds and crosses
+the warning threshold **203 steps before** the NaN.
+
+| Model | Divergence | Warning (entropy < 0.6) | Lead time |
+|---|---|---|---|
+| 2-layer GPT, 4 heads (~109K params) | NaN @ step 351 | step 148 | **203 steps** |
+
+```
+attn_H 0.99 ●●●●●●●●●●●●●●●●●●●●●               healthy training
+       0.60 ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄ WARN(148) ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄  threshold
+            ●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●● │ NaN(351)
+            0          100      148      200       351  step
+                                 └──── 203 steps ────┘
+   loss:  0.7 ──► 185 (at warning) ──► 1.2e12 ──► NaN
+```
+
+```bash
+python protocols/p5_real_divergence.py        # ~2 min on CPU, no GPU required
+```
+
+> Divergence here is induced by learning-rate escalation in fp32 (CPU); this
+> demonstrates the precursor **mechanism** (attention entropy collapses before
+> numerical failure). A hardware-faithful **FP16-underflow** divergence on GPU
+> remains documented future work (see below and `docs/GPU_VALIDATION_PLAN.md`).
+
 ## What is not yet validated
 
 - **GPU overhead** — measured on CPU only; Protocol P2
   (`protocols/p2_overhead_torch.py`) runs on accelerator hardware and
   captures full hardware metadata when executed.
-- **Real-model lead times** — Protocol P3
-  (`protocols/p3_early_warning_torch.py`) runs a real PyTorch transformer
-  divergence in FP16; not yet executed by the author at scale.
+- **Real-model lead time (FP16 path)** — a real-transformer lead time of
+  **203 steps** is demonstrated via learning-rate escalation
+  (`protocols/p5_real_divergence.py`, above). The **FP16-underflow** divergence
+  path (Protocol P3, `protocols/p3_early_warning_torch.py`) and larger-scale
+  runs are not yet executed by the author.
 - **FSDP / model-parallel settings** — compatibility not tested.
 
 These gaps are documented in `paper/preprint.pdf` §6 and motivate the
@@ -115,7 +149,9 @@ src/nonans/              Installable package (Apache-2.0)
   bindings.py            nonans.wrap(model, optimizer) entry point
   _torch_bindings.py     Small torch-only surface: grad + Adam state access
   bench/                 Six benchmarks runnable via `python -m nonans.bench`
-protocols/               PyTorch protocols (P1-P4) for GPU validation
+protocols/               PyTorch protocols for validation
+  p1..p4_*.py            unified-identity, overhead, FP16 early-warning, GPT-2 monitor
+  p5_real_divergence.py  real-transformer divergence: 203-step lead before NaN (CPU/GPU)
 tests/                   pytest suite; CI-gate on the locked benchmark numbers
 paper/                   preprint.pdf + LaTeX source
 docs/                    Application brief, GPU validation plan
