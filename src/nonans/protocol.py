@@ -38,12 +38,23 @@ class Health(Enum):
 
 
 class RuntimeHealth(Enum):
-    """Inference-time attention-pathology classification."""
-    HEALTHY = "healthy"
-    COLLAPSE = "collapse"
-    MAXIMUM = "maximum"
-    DEVIATION = "deviation"
-    UNKNOWN = "unknown"
+    """Inference-time attention-pathology classification.
+
+    Each member carries (string value, severity rank, display icon).
+    severity orders heads for display/sorting (runtime.display_layer, P4);
+    icon is the console glyph. Added so the runtime display and P4 do not
+    raise AttributeError.
+    """
+    HEALTHY   = ("healthy",   0, "\u2713")
+    DEVIATION = ("deviation", 1, "~")
+    MAXIMUM   = ("maximum",   2, "\u25b3")
+    COLLAPSE  = ("collapse",  3, "\u25bc")
+    UNKNOWN   = ("unknown",  -1, "?")
+
+    def __init__(self, value: str, severity: int, icon: str) -> None:
+        self._value_ = value
+        self.severity = severity
+        self.icon = icon
 
 
 # ─── Ring buffer ─────────────────────────────────────────────────────────────
