@@ -11,13 +11,14 @@ for transformer numerical health.
 
 [![Apache-2.0](https://img.shields.io/badge/code-Apache--2.0-2ec87a)](LICENSE)
 [![Paper CC BY 4.0](https://img.shields.io/badge/paper-CC%20BY%204.0-a599ff)](https://doi.org/10.5281/zenodo.20573423)
-[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20573423-7c6bff)](https://doi.org/10.5281/zenodo.20573423)
+[![Preprint II](https://img.shields.io/badge/preprint%20II-10.5281%2Fzenodo.20773398-7c6bff)](https://doi.org/10.5281/zenodo.20773398)
+[![Preprint I](https://img.shields.io/badge/preprint%20I-10.5281%2Fzenodo.20573423-9898ac)](https://doi.org/10.5281/zenodo.20573423)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0007--7010--3282-a6ce39)](https://orcid.org/0009-0007-7010-3282)
 [![Benchmarks](https://img.shields.io/badge/benchmarks-6%2F6%20reproduce-2ec87a)](#benchmarks)
 [![Real-model](https://img.shields.io/badge/real--model-203%20step%20lead-7c6bff)](#real-model-validation)
-[![Version](https://img.shields.io/badge/version-0.4.0-9898ac)](#)
+[![Version](https://img.shields.io/badge/version-0.5.0-9898ac)](#)
 
-[**Website**](https://nonans.com) · [**Researcher**](https://makhebiahlem.nonans.com) · [**Preprint**](https://doi.org/10.5281/zenodo.20573423) · [**Cite**](#cite)
+[**Website**](https://nonans.com) · [**Researcher**](https://makhebiahlem.nonans.com) · [**Preprint II**](https://doi.org/10.5281/zenodo.20773398) · [**Preprint I**](https://doi.org/10.5281/zenodo.20573423) · [**Cite**](#cite)
 
 </div>
 
@@ -35,7 +36,7 @@ maintained in a separate private codebase; its method is the subject
 of separate forthcoming work.
 
 > Project: **nonansNRI** · Commercial entity: **nonans**
-> Independent research project. Reference implementation: `nonans` v0.4.0.
+> Independent research project. Reference implementation: `nonans` v0.5.0.
 > Paper: CC BY 4.0 · Code: Apache-2.0 (open) · Resolver: proprietary
 
 ---
@@ -46,7 +47,7 @@ of separate forthcoming work.
 git clone https://github.com/makheahlem/nonans.git
 cd nonans
 pip install -e .          # numpy is the only required dep
-./reproduce.sh            # runs B1 and B2 with locked-number assertions
+python reproduce.py       # cross-platform: installs if needed, runs core checks
 ```
 
 Expected output (deterministic, seed `20260525`, IEEE-754):
@@ -121,6 +122,38 @@ python protocols/p5_real_divergence.py        # ~2 min on CPU, no GPU required
 > numerical failure). A hardware-faithful **FP16-underflow** divergence on GPU
 > remains documented future work (see below and `docs/GPU_VALIDATION_PLAN.md`).
 
+## What's new in v0.5.0 — silent structural degradation
+
+v0.5.0 adds a multi-architecture failure-trace dataset and held-out-calibrated
+validation, behind a second preprint that extends the foundational work.
+
+**Central finding.** On real transformer architectures (causal GPT-style and
+bidirectional ViT-style), NRI's spectral signal registers structural degradation
+while loss and gradient norms remain within their healthy range — a class of
+degradation that standard loss/gradient monitoring cannot, by construction,
+observe. The result is held-out-calibrated with **0 false alarms** across both
+architectures (dead-unit injection: 6/6 GPT, 5/5 ViT; rank-collapse: 3/6 GPT,
+6/6 ViT; attention concentration is a characterized blind spot, 0/6 both).
+
+**Robustness finding.** Of four induced failure modes on real transformers, only
+unbounded weight-norm growth reliably reaches a non-finite value (12/12 across
+both architectures); injected rank collapse, attention concentration, and unit
+death are largely absorbed by the architecture's normalization and residual
+structure — reframing where training instability actually originates.
+
+All results are reproducible on CPU:
+
+```bash
+pip install -e .
+python datasets/nri_failure_dataset_generator.py     # multi-arch failure dataset
+python datasets/nri_dataset_validation.py            # held-out-calibrated validation
+python datasets/silent_degradation_validated.py      # silent-degradation test
+```
+
+Second preprint: *Numerical Runtime Intelligence: Observing Structural
+Degradation in Transformer Training Beyond Loss and Gradient Signals* —
+[doi.org/10.5281/zenodo.20773398](https://doi.org/10.5281/zenodo.20773398).
+
 ## What is not yet validated
 
 - **GPU overhead** — measured on CPU only; Protocol P2
@@ -149,6 +182,11 @@ src/nonans/              Installable package (Apache-2.0)
   bindings.py            nonans.wrap(model, optimizer) entry point
   _torch_bindings.py     Small torch-only surface: grad + Adam state access
   bench/                 Six benchmarks runnable via `python -m nonans.bench`
+datasets/                Multi-architecture failure dataset + validation (v0.5.0)
+  nri_failure_dataset_generator.py   bare-matrix failure traces (numpy, CPU)
+  nri_failure_dataset_torch.py       real GPT/ViT failure traces (torch)
+  nri_dataset_validation.py          held-out-calibrated cross-arch validation
+  silent_degradation_validated.py    silent-degradation test (the v0.5.0 finding)
 protocols/               PyTorch protocols for validation
   p1..p4_*.py            unified-identity, overhead, FP16 early-warning, GPT-2 monitor
   p5_real_divergence.py  real-transformer divergence: 203-step lead before NaN (CPU/GPU)
